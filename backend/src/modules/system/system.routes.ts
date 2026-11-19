@@ -2,12 +2,15 @@ import { Router } from 'express'
 import { exec, spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
-import { requireAuth, type AuthRequest } from '../../middleware/auth.middleware.js'
+import { requireAuth, requireAdmin, type AuthRequest } from '../../middleware/auth.middleware.js'
 import { prisma } from '../../config/prisma.js'
 import { decryptText, encryptText } from '../../utils/crypto.js'
 import Busboy from 'busboy'
 
 export const systemRouter = Router()
+
+// All /system/* endpoints require authenticated administrator access
+systemRouter.use(requireAuth, requireAdmin)
 
 
 systemRouter.post('/update', requireAuth, (req, res, next) => {

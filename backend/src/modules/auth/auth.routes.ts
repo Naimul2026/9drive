@@ -42,13 +42,32 @@ async function verifyCaptcha(token: string | undefined) {
 
 authRouter.post('/register', async (req, res, next) => {
   try {
+    const userCount = await prisma.user.count()
+    const allowRegistration = env.ALLOW_REGISTRATION !== undefined
+      ? env.ALLOW_REGISTRATION.toLowerCase() === 'true' || env.ALLOW_REGISTRATION === '1'
+      : userCount === 0
+
+    if (!allowRegistration) {
+      return res.status(403).json({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently disabled.' })
+    }
+
     const body = registerSchema.parse(req.body)
     if (!(await verifyCaptcha(body.captchaToken))) return res.status(400).json({ code: 'CAPTCHA_FAILED', message: 'Captcha verification failed.' })
     const existing = await prisma.user.findUnique({ where: { email: body.email } })
     if (existing) return res.status(409).json({ code: 'AUTH_EMAIL_TAKEN', message: 'Email already registered.' })
-    const user = await prisma.user.create({ data: { name: body.name, email: body.email, passwordHash: await hashPassword(body.password) } })
+
+    const isFirstUser = userCount === 0
+    const user = await prisma.user.create({
+      data: {
+        name: body.name,
+        email: body.email,
+        passwordHash: await hashPassword(body.password),
+        role: isFirstUser ? 'admin' : 'user',
+        isAdmin: isFirstUser,
+      },
+    })
     const tokens = await createSession(user.id, req)
-    return res.status(201).json({ ...tokens, user: { id: user.id, name: user.name, email: user.email } })
+    return res.status(201).json({ ...tokens, user: { id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: user.isAdmin } })
   } catch (error) {
     return next(error)
   }
@@ -60,7 +79,7 @@ authRouter.post('/login', async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email: body.email } })
     if (!user || !(await verifyPassword(user.passwordHash, body.password))) return res.status(401).json({ code: 'AUTH_INVALID_CREDENTIALS', message: 'Invalid email or password.' })
     const tokens = await createSession(user.id, req)
-    return res.json({ ...tokens, user: { id: user.id, name: user.name, email: user.email } })
+    return res.json({ ...tokens, user: { id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: user.isAdmin } })
   } catch (error) {
     return next(error)
   }
@@ -161,7 +180,7 @@ authRouter.post('/google/exchange', async (req, res, next) => {
     if (!handoff) return res.status(401).json({ code: 'AUTH_GOOGLE_HANDOFF_INVALID', message: 'Google login session expired.' })
     await prisma.authHandoff.update({ where: { id: handoff.id }, data: { usedAt: new Date() } })
     const tokens = await createSession(handoff.userId, req)
-    return res.json({ ...tokens, user: { id: handoff.user.id, name: handoff.user.name, email: handoff.user.email } })
+    return res.json({ ...tokens, user: { id: handoff.user.id, name: handoff.user.name, email: handoff.user.email, role: handoff.user.role, isAdmin: handoff.user.isAdmin } })
   } catch (error) {
     return next(error)
   }
@@ -189,7 +208,7 @@ authRouter.post('/logout', requireAuth, async (req: AuthRequest, res, next) => {
 
 authRouter.get('/me', requireAuth, async (req: AuthRequest, res, next) => {
   try {
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id }, select: { id: true, name: true, email: true, status: true } })
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id }, select: { id: true, name: true, email: true, status: true, role: true, isAdmin: true } })
     return res.json({ user })
   } catch (error) {
     return next(error)
