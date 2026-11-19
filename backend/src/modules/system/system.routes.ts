@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { exec, spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
-import { requireAuth } from '../../middleware/auth.middleware.js'
+import { requireAuth, type AuthRequest } from '../../middleware/auth.middleware.js'
 import { prisma } from '../../config/prisma.js'
 import { decryptText, encryptText } from '../../utils/crypto.js'
 import Busboy from 'busboy'
@@ -135,8 +135,14 @@ systemRouter.get('/google-config', requireAuth, async (req, res, next) => {
   }
 })
 
-systemRouter.post('/google-config', requireAuth, async (req, res, next) => {
+systemRouter.post('/google-config', requireAuth, async (req: AuthRequest, res, next) => {
   try {
+    // Only the oldest registered user (admin) may change global OAuth config
+    const admin = await prisma.user.findFirst({ orderBy: { createdAt: 'asc' } })
+    if (!admin || admin.id !== req.user!.id) {
+      return res.status(403).json({ code: 'FORBIDDEN', message: 'Only the administrator may update OAuth configuration.' })
+    }
+
     const { clientId, clientSecret, redirectUri } = req.body
 
     if (!clientId) {

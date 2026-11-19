@@ -11,5 +11,5 @@ export function signAccessToken(payload: AccessTokenPayload) {
 }
 
 export function verifyAccessToken(token: string) {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload
+  return jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as AccessTokenPayload
 }

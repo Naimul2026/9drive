@@ -13,6 +13,8 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     const payload = verifyAccessToken(header.slice(7))
     const session = await prisma.userSession.findUnique({ where: { id: payload.sid } })
     if (!session || session.revokedAt || session.expiresAt < new Date()) return res.status(401).json({ code: 'AUTH_SESSION_EXPIRED', message: 'Session expired.' })
+    // Verify the session actually belongs to the user claimed in the token
+    if (session.userId !== payload.sub) return res.status(401).json({ code: 'AUTH_INVALID_TOKEN', message: 'Invalid token.' })
     req.user = { id: payload.sub, sessionId: payload.sid }
     return next()
   } catch {

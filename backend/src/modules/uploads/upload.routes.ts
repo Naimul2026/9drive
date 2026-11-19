@@ -178,16 +178,16 @@ export async function handleUpload(req: AuthRequest, res: Response, next: NextFu
 
         const session = await prisma.uploadSession.create({ data: { userId: req.user!.id, targetConnectedAccountId: account.id, folderId, fileName, mimeType: meta.mimeType, sizeBytes: meta.sizeBytes, status: 'uploading' } })
         logUpload('file upload started', { sessionId: session.id, accountId: account.id, fileName, sizeBytes: meta.sizeBytes.toString() })
-        const chunks: Buffer[] = []
-        fileStream.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
+        // Count bytes as they stream through; do NOT buffer the whole file in RAM.
+        let streamedBytes = 0n
+        const { Transform } = await import('stream')
+        const counter = new Transform({
+          transform(chunk, _encoding, cb) {
+            streamedBytes += BigInt(chunk.length)
+            cb(null, chunk)
+          },
         })
-        await new Promise<void>((resolve, reject) => {
-          fileStream.on('end', resolve)
-          fileStream.on('error', reject)
-        })
-        const fileBuffer = Buffer.concat(chunks)
-        const streamedBytes = BigInt(fileBuffer.length)
+        const countedStream = (fileStream as NodeJS.ReadableStream).pipe(counter)
 
         let providerFileId = ''
         let s3FileId: string | null = null
@@ -200,7 +200,7 @@ export async function handleUpload(req: AuthRequest, res: Response, next: NextFu
           })
           s3FileId = provisionalFile.id
           providerFileId = buildS3ObjectKey(config, req.user!.id, provisionalFile.id, fileName)
-          await uploadS3Object(config, providerFileId, Readable.from(fileBuffer), meta.mimeType)
+          await uploadS3Object(config, providerFileId, Readable.from(countedStream), meta.mimeType)
           await prisma.file.update({ where: { id: provisionalFile.id }, data: { providerFileId, status: 'active' } })
           completed.push({ ...provisionalFile, providerFileId, status: 'active', sizeBytes: provisionalFile.sizeBytes.toString() })
           logUpload('s3 upload completed', { sessionId: session.id, accountId: account.id, fileName })
@@ -217,27 +217,13 @@ export async function handleUpload(req: AuthRequest, res: Response, next: NextFu
           }
           const uploaded = await drive.files.create({
             requestBody: { name: fileName, parents: [targetParentId] },
-            media: { mimeType: meta.mimeType, body: Readable.from(fileBuffer) },
+            media: { mimeType: meta.mimeType, body: Readable.from(countedStream) },
             fields: 'id,name,mimeType,size',
           })
           providerFileId = uploaded.data.id ?? ''
           uploadedName = uploaded.data.name ?? fileName
           uploadedMimeType = uploaded.data.mimeType ?? meta.mimeType
           logUpload('google upload completed', { sessionId: session.id, accountId: account.id, fileName })
-
-          // Make the file public (anyone with link can edit/download)
-          try {
-            await drive.permissions.create({
-              fileId: providerFileId,
-              requestBody: {
-                role: 'writer',
-                type: 'anyone'
-              }
-            })
-            logUpload('google file permissions set to public writer', { sessionId: session.id, providerFileId })
-          } catch (err: any) {
-            console.error('Failed to make Google Drive file public:', err.message || err)
-          }
         }
 
         if (streamedBytes !== meta.sizeBytes) {
@@ -263,7 +249,11 @@ export async function handleUpload(req: AuthRequest, res: Response, next: NextFu
     }
 
     busboy.on('field', (name, value) => {
-      if (name === 'sizeBytes') fields.sizeBytes = BigInt(value)
+      try {
+        if (name === 'sizeBytes') fields.sizeBytes = BigInt(value)
+      } catch {
+        // Ignore invalid sizeBytes – will be caught later as "sizeBytes required"
+      }
       if (name === 'fileName') fields.fileName = value
       if (name === 'mimeType') fields.mimeType = value
       if (name === 'folderId') fields.folderId = value
@@ -501,19 +491,6 @@ uploadRouter.put('/resumable/chunk/:id', requireAuth, async (req: AuthRequest, r
     if (putRes.ok) {
       // Completed! Parse metadata
       const fileMeta = await putRes.json() as { id: string; name: string; mimeType: string }
-
-      // Make the file public (anyone with link can edit/download)
-      try {
-        await drive.permissions.create({
-          fileId: fileMeta.id,
-          requestBody: {
-            role: 'writer',
-            type: 'anyone'
-          }
-        })
-      } catch (err: any) {
-        console.error('Failed to make Google Drive resumable file public:', err.message || err)
-      }
 
       let existingFile = await prisma.file.findFirst({
         where: { providerFileId: fileMeta.id, userId: req.user!.id }
