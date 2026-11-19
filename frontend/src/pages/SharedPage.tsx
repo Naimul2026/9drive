@@ -7,13 +7,13 @@ import { Card } from '@/components/ui/card'
 import { apiFetch, formatBytes, formatDate } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-type InviteTarget = { id: string; name: string; type: 'file' | 'folder'; mimeType?: string; sizeBytes?: string }
+type InviteTarget = { id: string; name: string; type: 'file' | 'folder' | 'workspace'; mimeType?: string; sizeBytes?: string }
 type Invite = {
   id: string
   email: string
   role: string
   status: string
-  targetType: 'file' | 'folder'
+  targetType: 'file' | 'folder' | 'workspace'
   targetId: string
   target: InviteTarget | null
   createdAt: string
@@ -21,16 +21,39 @@ type Invite = {
   user: { id: string; name: string; email: string } | null
 }
 
-function ResourceIcon({ type }: { type: 'file' | 'folder' }) {
+function ResourceIcon({ type }: { type: 'file' | 'folder' | 'workspace' }) {
+  if (type === 'workspace') return <Users className="h-5 w-5 text-blue-600" />
   return type === 'folder' ? <Folder className="h-5 w-5 text-blue-600" /> : <FileArchive className="h-5 w-5 text-blue-600" />
 }
 
 export function SharedPage() {
   const [sentInvites, setSentInvites] = useState<Invite[]>([])
   const [receivedInvites, setReceivedInvites] = useState<Invite[]>([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
   const [message, setMessage] = useState('')
   const pendingCount = sentInvites.filter((invite) => invite.status === 'pending').length
   const acceptedCount = sentInvites.filter((invite) => invite.status === 'accepted').length
+
+  async function handleInviteMember(e: React.FormEvent) {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviting(true)
+    setMessage('')
+    try {
+      await apiFetch('/invites', {
+        method: 'POST',
+        body: JSON.stringify({ email: inviteEmail.trim().toLowerCase(), targetType: 'workspace', role: 'member' }),
+      })
+      setMessage(`Invitation sent to ${inviteEmail}. They are now authorized to register!`)
+      setInviteEmail('')
+      await loadInvites()
+    } catch (err: any) {
+      setMessage(err instanceof Error ? err.message : 'Failed to send invite.')
+    } finally {
+      setInviting(false)
+    }
+  }
 
   async function loadInvites() {
     const data = await apiFetch<{ sent: Invite[]; received: Invite[] }>('/invites')
@@ -60,6 +83,27 @@ export function SharedPage() {
       </div>
 
       <Card className="mt-8 p-5">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+          <h2 className="font-extrabold text-base">Invite Member to Workspace</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Invited emails are authorized to register on 9Drive when public registration is closed.</p>
+        </div>
+        <form onSubmit={handleInviteMember} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="email"
+            placeholder="member@gmail.com"
+            className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm focus:border-blue-600 focus:outline-none"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            required
+          />
+          <Button type="submit" disabled={inviting} size="sm" className="h-10">
+            <Users className="h-4 w-4 mr-1.5" />
+            {inviting ? 'Inviting...' : 'Invite Member'}
+          </Button>
+        </form>
+      </Card>
+
+      <Card className="mt-6 p-5">
         <h2 className="font-extrabold">Shared With You</h2>
         <div className="mt-4 grid gap-3">
           {receivedInvites.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No files or folders have been shared with you yet.</p> : receivedInvites.map((invite) => (

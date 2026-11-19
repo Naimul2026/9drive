@@ -13,6 +13,7 @@ export const authRouter = Router()
 
 const registerSchema = z.object({ name: z.string().min(2), email: z.string().email(), password: z.string().min(8), captchaToken: z.string().optional() })
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) })
+const changePasswordSchema = z.object({ currentPassword: z.string().min(1, 'Current password is required.'), newPassword: z.string().min(8, 'New password must be at least 8 characters.') })
 const refreshSchema = z.object({ refreshToken: z.string().min(1) })
 const googleExchangeSchema = z.object({ token: z.string().min(1) })
 
@@ -43,12 +44,34 @@ async function verifyCaptcha(token: string | undefined) {
 authRouter.post('/register', async (req, res, next) => {
   try {
     const userCount = await prisma.user.count()
-    const allowRegistration = env.ALLOW_REGISTRATION !== undefined
-      ? env.ALLOW_REGISTRATION.toLowerCase() === 'true' || env.ALLOW_REGISTRATION === '1'
-      : userCount === 0
+    let allowRegistration = false
+
+    if (userCount === 0) {
+      allowRegistration = true
+    } else if (env.ALLOW_REGISTRATION !== undefined) {
+      allowRegistration = env.ALLOW_REGISTRATION.toLowerCase() === 'true' || env.ALLOW_REGISTRATION === '1'
+    }
+
+    const normalizedEmail = req.body?.email ? String(req.body.email).trim().toLowerCase() : ''
+    let matchingInvite = null
+    if (!allowRegistration && normalizedEmail) {
+      matchingInvite = await prisma.workspaceInvite.findFirst({
+        where: {
+          inviteeEmail: normalizedEmail,
+          status: 'pending',
+          revokedAt: null,
+        },
+      })
+      if (matchingInvite) {
+        allowRegistration = true
+      }
+    }
 
     if (!allowRegistration) {
-      return res.status(403).json({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently disabled.' })
+      return res.status(403).json({
+        code: 'REGISTRATION_DISABLED',
+        message: 'Registration is invite-only. Please contact the administrator for an invitation.',
+      })
     }
 
     const body = registerSchema.parse(req.body)
@@ -66,8 +89,50 @@ authRouter.post('/register', async (req, res, next) => {
         isAdmin: isFirstUser,
       },
     })
+
+    if (matchingInvite) {
+      await prisma.workspaceInvite.updateMany({
+        where: {
+          inviteeEmail: normalizedEmail,
+          status: 'pending',
+          revokedAt: null,
+        },
+        data: { status: 'accepted', acceptedAt: new Date() },
+      })
+    }
+
     const tokens = await createSession(user.id, req)
     return res.status(201).json({ ...tokens, user: { id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: user.isAdmin } })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+authRouter.post('/change-password', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const body = changePasswordSchema.parse(req.body)
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } })
+    if (!user || !(await verifyPassword(user.passwordHash, body.currentPassword))) {
+      return res.status(400).json({ code: 'INVALID_CURRENT_PASSWORD', message: 'Current password does not match.' })
+    }
+
+    if (body.currentPassword === body.newPassword) {
+      return res.status(400).json({ code: 'PASSWORD_UNCHANGED', message: 'New password cannot be the same as current password.' })
+    }
+
+    const newPasswordHash = await hashPassword(body.newPassword)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newPasswordHash },
+    })
+
+    // Revoke all other sessions for this user
+    await prisma.userSession.updateMany({
+      where: { userId: user.id, id: { not: req.user!.sessionId } },
+      data: { revokedAt: new Date() },
+    })
+
+    return res.json({ status: 'ok', message: 'Password changed successfully.' })
   } catch (error) {
     return next(error)
   }

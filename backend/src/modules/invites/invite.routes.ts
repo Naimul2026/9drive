@@ -6,12 +6,18 @@ import { requireAuth, type AuthRequest } from '../../middleware/auth.middleware.
 export const inviteRouter = Router()
 inviteRouter.use(requireAuth)
 
-const inviteSchema = z.object({ email: z.string().email(), role: z.enum(['viewer', 'editor']).default('viewer'), targetType: z.enum(['file', 'folder']), targetId: z.string().min(1) })
+const inviteSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['viewer', 'editor', 'member']).default('viewer'),
+  targetType: z.enum(['file', 'folder', 'workspace']).default('workspace'),
+  targetId: z.string().optional().default(''),
+})
 
 type InviteRecord = { id: string; inviterId: string; inviteeEmail: string; targetType: string; targetId: string; role: string; status: string; revokedAt: Date | null; acceptedAt: Date | null; createdAt: Date; updatedAt: Date }
-type TargetRecord = { id: string; name: string; type: 'file' | 'folder'; mimeType?: string; sizeBytes?: string; folderId?: string | null }
+type TargetRecord = { id: string; name: string; type: 'file' | 'folder' | 'workspace'; mimeType?: string; sizeBytes?: string; folderId?: string | null }
 
 async function assertTargetOwner(userId: string, targetType: string, targetId: string) {
+  if (targetType === 'workspace') return null
   if (targetType === 'file') return prisma.file.findFirstOrThrow({ where: { id: targetId, userId, status: 'active' } })
   return prisma.folder.findFirstOrThrow({ where: { id: targetId, userId, deletedAt: null } })
 }
@@ -37,7 +43,7 @@ function serializeInvite(invite: InviteRecord, target: TargetRecord | null, user
     status: invite.status,
     targetType: invite.targetType,
     targetId: invite.targetId,
-    target,
+    target: invite.targetType === 'workspace' ? { id: '', name: 'Workspace Access', type: 'workspace' as const } : (target ?? null),
     revokedAt: invite.revokedAt?.toISOString() ?? null,
     acceptedAt: invite.acceptedAt?.toISOString() ?? null,
     createdAt: invite.createdAt.toISOString(),
@@ -50,8 +56,8 @@ inviteRouter.get('/', async (req: AuthRequest, res, next) => {
   try {
     const me = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id }, select: { email: true } })
     const [sent, received] = await Promise.all([
-      prisma.workspaceInvite.findMany({ where: { inviterId: req.user!.id, revokedAt: null, targetId: { not: '' } }, orderBy: { createdAt: 'desc' } }),
-      prisma.workspaceInvite.findMany({ where: { inviteeEmail: me.email, revokedAt: null, targetId: { not: '' } }, orderBy: { createdAt: 'desc' } }),
+      prisma.workspaceInvite.findMany({ where: { inviterId: req.user!.id, revokedAt: null }, orderBy: { createdAt: 'desc' } }),
+      prisma.workspaceInvite.findMany({ where: { inviteeEmail: me.email, revokedAt: null }, orderBy: { createdAt: 'desc' } }),
     ])
     const allInvites = [...sent, ...received]
     const emails = [...new Set(sent.map((invite) => invite.inviteeEmail))]

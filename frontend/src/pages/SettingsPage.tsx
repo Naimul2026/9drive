@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react'
-import { Bell, Cloud, Database, Globe, HardDrive, Link2, RefreshCw, Trash2 } from 'lucide-react'
+import { Bell, Cloud, Database, Globe, HardDrive, KeyRound, Link2, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DummyModal } from '@/components/drive/DummyModal'
@@ -42,6 +42,41 @@ export function SettingsPage() {
   const [updatingSystem, setUpdatingSystem] = useState(false)
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [updateModalTitle, setUpdateModalTitle] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+
+  async function handleChangePassword(e: FormEvent) {
+    e.preventDefault()
+    setPasswordMessage('')
+    setPasswordError('')
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.')
+      return
+    }
+    setPasswordLoading(true)
+    try {
+      const res = await apiFetch<{ message: string }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      setPasswordMessage(res.message || 'Password updated successfully!')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: any) {
+      setPasswordError(err instanceof Error ? err.message : 'Failed to change password.')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
 
   // Google OAuth Config states
   const [googleClientId, setGoogleClientId] = useState('')
@@ -487,6 +522,59 @@ export function SettingsPage() {
               <div className="flex justify-end mt-1">
                 <Button type="submit" disabled={savingGoogleConfig} size="sm">
                   {savingGoogleConfig ? 'Saving...' : 'Save Credentials'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          <Card className="overflow-hidden p-4">
+            <div className="flex items-center gap-2.5 mb-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <KeyRound className="h-5 w-5 text-blue-600" />
+              <h2 className="text-[16px] font-bold">Security & Password</h2>
+            </div>
+            <p className="text-[13px] text-slate-500 mb-4">
+              Update your account password. Requests are rate limited to 5 attempts per 15 minutes.
+            </p>
+            {passwordMessage && (
+              <div className="mb-3 p-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                {passwordMessage}
+              </div>
+            )}
+            {passwordError && (
+              <div className="mb-3 p-2.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold">
+                {passwordError}
+              </div>
+            )}
+            <form onSubmit={handleChangePassword} className="grid gap-3 sm:grid-cols-3">
+              <input
+                type="password"
+                placeholder="Current password"
+                className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm focus:border-blue-600 focus:outline-none"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                placeholder="New password (min 8 chars)"
+                className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm focus:border-blue-600 focus:outline-none"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm focus:border-blue-600 focus:outline-none"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+              <div className="sm:col-span-3 flex justify-end">
+                <Button type="submit" disabled={passwordLoading} size="sm">
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
                 </Button>
               </div>
             </form>
