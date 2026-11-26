@@ -27,10 +27,10 @@ type BackendFolder = { id: string; name: string; color: string; iconUrl?: string
 type ConnectedAccount = { id: string; provider: string; email: string; displayName?: string | null; status: string }
 
 const sizeActiveClasses: Record<FolderSizeScale, string> = {
-  xs: 'bg-white text-slate-800 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30 shadow-sm dark:shadow-none',
-  sm: 'bg-white text-slate-800 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30 shadow-sm dark:shadow-none',
-  md: 'bg-white text-slate-800 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30 shadow-sm dark:shadow-none',
-  lg: 'bg-white text-slate-800 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30 shadow-sm dark:shadow-none'
+  xs: 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100',
+  sm: 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100',
+  md: 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100',
+  lg: 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100',
 }
 
 type FileViewMode = 'list' | 'grid'
@@ -702,26 +702,26 @@ export function AllFilesPage() {
         </div>
       </div>
       {message ? <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</p> : null}
-      {!activeFolder && (recentFolders.length > 0 ? <FolderGrid items={recentFolders} mobileTwoColumns sizeScale={folderSizeScale} onFolderMenu={openFolderMenu} onFolderOpen={openFolder} onDropItem={handleDropItem} /> : <p className="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-500">No folders yet. Click New Folder to organize uploads.</p>)}
+      {!activeFolder && (recentFolders.length > 0 ? <FolderGrid items={recentFolders} mobileTwoColumns sizeScale={folderSizeScale} onFolderMenu={openFolderMenu} onFolderOpen={openFolder} onDropItem={handleDropItem} /> : <p className="mt-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">No folders yet. Click New Folder to organize uploads.</p>)}
       {!activeFolder && moreFolders.length > 0 ? <>
-        <h2 className="mt-4 font-extrabold text-slate-700">More Folders</h2>
+        <h2 className="mt-6 text-sm font-semibold text-slate-700 dark:text-slate-300">More Folders</h2>
         <FolderGrid items={moreFolders} sizeScale={folderSizeScale} onFolderMenu={openFolderMenu} onFolderOpen={openFolder} onDropItem={handleDropItem} />
       </> : null}
       {activeFolder && folders.length > 0 ? <>
-        <h2 className="mt-4 font-extrabold text-slate-700">Folders</h2>
+        <h2 className="mt-6 text-sm font-semibold text-slate-700 dark:text-slate-300">Folders</h2>
         <FolderGrid items={folders} sizeScale={folderSizeScale} onFolderMenu={openFolderMenu} onFolderOpen={openFolder} onDropItem={handleDropItem} />
       </> : null}
-      <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3"><Button variant="soft" className="hidden sm:inline-flex"><Archive className="h-4 w-4" />Recents</Button><Button variant="soft" className="hidden sm:inline-flex"><Star className="h-4 w-4" />Starred</Button>{selectedFileIds.size > 0 ? <div className="flex w-full flex-col gap-3 rounded-2xl border border-orange-500/20 bg-orange-500/10 p-3 sm:w-auto sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0"><span className="text-sm font-extrabold text-slate-700">{selectedFileIds.size} selected</span><div className="grid grid-cols-4 gap-2 sm:flex sm:gap-3"><Button className="w-full" variant="outline" onClick={downloadBatchAsZip}><Download className="h-4 w-4" />ZIP</Button><Button className="w-full" variant="outline" onClick={() => setMoveOpen(true)}><FolderInput className="h-4 w-4" />Move</Button><Button className="w-full" variant="danger" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" />Delete</Button><Button className="w-full" variant="ghost" onClick={clearSelection}>Clear</Button></div></div> : null}</div>
-        <div className="flex gap-3"><Button variant={fileViewMode === 'grid' ? 'soft' : 'outline'} size="icon" aria-label="Show files as grid" aria-pressed={fileViewMode === 'grid'} onClick={() => changeFileViewMode('grid')}><LayoutGrid className="h-5 w-5" /></Button><Button variant={fileViewMode === 'list' ? 'soft' : 'outline'} size="icon" aria-label="Show files as list" aria-pressed={fileViewMode === 'list'} onClick={() => changeFileViewMode('list')}><List className="h-5 w-5" /></Button></div>
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2"><Button variant="soft" size="sm" className="hidden sm:inline-flex"><Archive className="h-4 w-4" />Recents</Button><Button variant="soft" size="sm" className="hidden sm:inline-flex"><Star className="h-4 w-4" />Starred</Button>{selectedFileIds.size > 0 ? <div className="flex w-full flex-col gap-3 rounded-xl border border-blue-500/20 bg-blue-50 p-3 sm:w-auto sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0 dark:bg-blue-950/30"><span className="font-mono text-xs font-semibold text-slate-700 tabular-nums dark:text-slate-300">{selectedFileIds.size} selected</span><div className="grid grid-cols-4 gap-2 sm:flex sm:gap-2"><Button size="sm" className="w-full" variant="outline" onClick={downloadBatchAsZip}><Download className="h-3.5 w-3.5" />ZIP</Button><Button size="sm" className="w-full" variant="outline" onClick={() => setMoveOpen(true)}><FolderInput className="h-3.5 w-3.5" />Move</Button><Button size="sm" className="w-full" variant="danger" onClick={() => setDeleteOpen(true)}><Trash2 className="h-3.5 w-3.5" />Delete</Button><Button size="sm" className="w-full" variant="ghost" onClick={clearSelection}>Clear</Button></div></div> : null}</div>
+        <div className="flex gap-2"><Button variant={fileViewMode === 'grid' ? 'soft' : 'outline'} size="icon" aria-label="Show files as grid" aria-pressed={fileViewMode === 'grid'} onClick={() => changeFileViewMode('grid')}><LayoutGrid className="h-4 w-4" /></Button><Button variant={fileViewMode === 'list' ? 'soft' : 'outline'} size="icon" aria-label="Show files as list" aria-pressed={fileViewMode === 'list'} onClick={() => changeFileViewMode('list')}><List className="h-4 w-4" /></Button></div>
       </div>
-      {cutFolder ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700"><ClipboardPaste className="mr-2 inline h-4 w-4" />Cut folder: {cutFolder.name}. Press Ctrl+V or right-click empty area to paste here.</p> : null}
+      {cutFolder ? <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"><ClipboardPaste className="mr-2 inline h-4 w-4" />Cut folder: {cutFolder.name}. Press Ctrl+V or right-click empty area to paste here.</p> : null}
       {files.length === 0 ? (
-        <Card className="mt-3 p-5 bg-white/10 backdrop-blur-sm border border-white/20 dark:bg-transparent dark:border-0 dark:p-0 dark:shadow-none">
-          <p className="text-sm text-slate-500">{searchQuery ? `No files found for "${searchQuery}".` : activeFolder ? 'No files in this folder yet.' : 'No uploaded files yet. Connect Google Drive in Settings, then upload a file.'}</p>
+        <Card className="mt-4 p-6">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{searchQuery ? `No files found for "${searchQuery}".` : activeFolder ? 'No files in this folder yet.' : 'No uploaded files yet. Connect Google Drive in Settings, then upload a file.'}</p>
         </Card>
       ) : (
-        <Card className="mt-3 p-4 sm:p-5 bg-white/10 backdrop-blur-sm border border-white/20 dark:bg-transparent dark:border-0 dark:p-0 dark:shadow-none">
+        <Card className="mt-4 p-4 sm:p-5">
           {fileViewMode === 'grid' ? (
             <FileGrid files={files} selectedFileIds={selectedFileIds} sizeScale={folderSizeScale} onToggleFile={toggleFileSelection} onFileContextMenu={openContext} />
           ) : (
@@ -737,16 +737,16 @@ export function AllFilesPage() {
 
       <DummyModal open={uploadOpen} title="Upload File" description="Stream file directly to selected Google Drive account." onClose={() => setUploadOpen(false)}>
         <form onSubmit={uploadFile} className="grid gap-4">
-           <label onDragEnter={handleUploadDrag} onDragOver={handleUploadDrag} onDragLeave={handleUploadDrag} onDrop={handleUploadDrag} className={isUploadDragging ? 'grid cursor-pointer gap-3 rounded-2xl border-2 border-dashed border-blue-500 bg-blue-50 p-4 text-center transition sm:p-6' : 'grid cursor-pointer gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-center transition hover:border-blue-300 hover:bg-blue-50/50 sm:p-6'}>
-            <Upload className={isUploadDragging ? 'mx-auto h-8 w-8 text-blue-600' : 'mx-auto h-8 w-8 text-slate-500'} />
-            <span className="text-sm font-extrabold text-slate-950">Drop file here or click to browse</span>
-            <span className="text-xs text-slate-500">Metadata is sent before the file so upload can stream directly to Google Drive.</span>
+           <label onDragEnter={handleUploadDrag} onDragOver={handleUploadDrag} onDragLeave={handleUploadDrag} onDrop={handleUploadDrag} className={isUploadDragging ? 'grid cursor-pointer gap-3 rounded-xl border-2 border-dashed border-blue-500 bg-blue-50 p-4 text-center transition dark:bg-blue-950/30 sm:p-6' : 'grid cursor-pointer gap-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-center transition hover:border-blue-400 hover:bg-blue-50/40 dark:border-slate-700 dark:bg-[#151e2e] dark:hover:border-blue-500/60 sm:p-6'}>
+            <Upload className={isUploadDragging ? 'mx-auto h-8 w-8 text-blue-600 dark:text-blue-400' : 'mx-auto h-8 w-8 text-slate-500 dark:text-slate-400'} />
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Drop file here or click to browse</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Metadata is sent before the file so upload can stream directly to Google Drive.</span>
             <Input type="file" className="sr-only" multiple onChange={(event) => selectUploadFiles(event.target.files)} required={selectedFiles.length === 0} />
           </label>
-          <label className="grid gap-2 text-sm font-semibold">
+          <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             Target Storage Account
             <select
-              className="h-11 rounded-xl border border-slate-200 px-3 text-sm bg-white"
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700/70 dark:bg-[#151e2e] dark:text-slate-100"
               value={selectedTargetAccountId}
               onChange={(event) => setSelectedTargetAccountId(event.target.value)}
             >
@@ -758,8 +758,8 @@ export function AllFilesPage() {
               ))}
             </select>
           </label>
-          {activeFolder ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Uploading to: <b>{activeFolder.name}</b></p> : <label className="grid gap-2 text-sm font-semibold">Virtual Folder<select className="h-11 rounded-xl border border-slate-200 px-3 text-sm bg-white" value={selectedFolderId} onChange={(event) => setSelectedFolderId(event.target.value)}><option value="">No folder</option>{allFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>}
-          {selectedFiles.length > 0 ? <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><div className="flex items-center justify-between gap-3"><span className="font-bold text-slate-950">{selectedFiles.length} selected</span><span className="shrink-0">{formatBytes(selectedFiles.reduce((total, file) => total + file.size, 0))}</span></div>{selectedFiles.map((file, index) => <div key={`${file.name}-${file.size}-${index}`} className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2"><span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span><span className="shrink-0 text-xs text-slate-500">{formatBytes(file.size)}</span><button type="button" className="shrink-0 text-slate-500 hover:text-red-600" onClick={() => removeUploadFile(index)} aria-label={`Remove ${file.name}`}><X className="h-4 w-4" /></button></div>)}</div> : null}
+          {activeFolder ? <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-[#151e2e] dark:text-slate-300">Uploading to: <b>{activeFolder.name}</b></p> : <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">Virtual Folder<select className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700/70 dark:bg-[#151e2e] dark:text-slate-100" value={selectedFolderId} onChange={(event) => setSelectedFolderId(event.target.value)}><option value="">No folder</option>{allFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>}
+          {selectedFiles.length > 0 ? <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-[#151e2e] dark:text-slate-300"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-900 dark:text-slate-100">{selectedFiles.length} selected</span><span className="shrink-0 font-mono text-xs tabular-nums">{formatBytes(selectedFiles.reduce((total, file) => total + file.size, 0))}</span></div>{selectedFiles.map((file, index) => <div key={`${file.name}-${file.size}-${index}`} className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 dark:bg-[#0f1623]"><span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span><span className="shrink-0 font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400">{formatBytes(file.size)}</span><button type="button" className="shrink-0 text-slate-500 hover:text-red-600" onClick={() => removeUploadFile(index)} aria-label={`Remove ${file.name}`}><X className="h-4 w-4" /></button></div>)}</div> : null}
           <div className="grid gap-3 sm:flex sm:justify-end"><Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>Cancel</Button><Button disabled={loading || selectedFiles.length === 0}>{loading ? 'Uploading...' : `Upload${selectedFiles.length > 1 ? ` ${selectedFiles.length} files` : ''}`}</Button></div>
         </form>
       </DummyModal>
